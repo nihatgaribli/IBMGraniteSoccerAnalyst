@@ -591,8 +591,9 @@ def main():
     st.markdown("---")
     st.markdown("""
     <div style='text-align: center; color: #666; font-size: 0.9rem;'>
-        Built with ❤️ using Streamlit, Plotly, and IBM Granite AI<br>
+        Built with using Streamlit, Plotly, and IBM Granite AI<br>
         Data source: StatsBomb Open Data
+        By Nihat Garibli
     </div>
     """, unsafe_allow_html=True)
 
