@@ -27,6 +27,7 @@ import warnings
 from src.soccer_tracking_data import get_soccer_tracking_data, get_world_cup_matches
 from src.spatial_analysis import SoccerVoronoiAnalyzer
 from src.tactical_explainer import TacticalExplainer
+from statsbombpy import sb
 
 # Suppress warnings for cleaner output
 warnings.filterwarnings('ignore')
@@ -347,35 +348,20 @@ def plot_voronoi_on_pitch(shot_df, analyzer):
         marker_color = marker_props['color']
         marker_symbol = marker_props['symbol']
         
-        # Create shortened labels (first initial + last name or jersey number)
-        short_labels = []
-        for name in team_df['player_name']:
-            parts = str(name).split()
-            if len(parts) > 1:
-                # Use first initial + last name (e.g., "L. Messi")
-                short_label = f"{parts[0][0]}. {parts[-1]}"
-            else:
-                # Use first 8 characters if single name
-                short_label = str(name)[:8]
-            short_labels.append(short_label)
-        
-        # Add scatter plot for players
+        # Add scatter plot for players (markers only, no text labels)
         fig.add_trace(go.Scatter(
             x=team_df['x'],
             y=team_df['y'],
-            mode='markers+text',
+            mode='markers',
             marker=dict(
                 size=12,
                 color=marker_color,
                 line=dict(color='white', width=2),
                 symbol=marker_symbol
             ),
-            text=short_labels,
-            textposition='top center',
-            textfont=dict(size=8, color='black', family='Arial Black'),
             name=team_name,
-            customdata=team_df['player_name'],
-            hovertemplate='<b>%{customdata}</b><br>Position: (%{x:.1f}, %{y:.1f})<extra></extra>'
+            text=team_df['player_name'],
+            hovertemplate='<b>%{text}</b><br>Position: (%{x:.1f}, %{y:.1f})<extra></extra>'
         ))
     
     # Update title
@@ -442,16 +428,57 @@ def main():
     # Shot selection
     st.sidebar.markdown("### 📊 Shot Selection")
     
-    # Get unique shots with timestamps
+    # Fetch shot events to get player names and outcomes
+    try:
+        events = sb.events(match_id=match_id)
+        shot_events = events[events['type'] == 'Shot'].copy()
+    except Exception as e:
+        st.error(f"Error loading shot events: {e}")
+        return
+    
+    # Get unique shots with timestamps and merge with shot event data
     shot_info = tracking_df.groupby('shot_id').agg({
         'timestamp': 'first'
     }).reset_index()
     
-    # Create display labels
-    shot_labels = [
-        f"Shot {i+1}: {row['timestamp']} ({row['shot_id'][:8]}...)"
-        for i, row in shot_info.iterrows()
-    ]
+    # Merge with shot events to get minute and second for sorting
+    shot_info = shot_info.merge(
+        shot_events[['id', 'player', 'shot_outcome', 'minute', 'second']],
+        left_on='shot_id',
+        right_on='id',
+        how='left'
+    )
+    
+    # Sort by minute and second in ascending order (chronological)
+    shot_info = shot_info.sort_values(['minute', 'second'], ascending=True).reset_index(drop=True)
+    
+    # Create display labels with semantic information
+    shot_labels = []
+    for i, row in shot_info.iterrows():
+        shot_id = row['shot_id']
+        
+        # Check if we have player and outcome data from the merge
+        if pd.notna(row.get('player')) and pd.notna(row.get('shot_outcome')):
+            # Extract player name
+            player_name = row.get('player', 'Unknown Player')
+            
+            # Extract shot outcome
+            shot_outcome = row.get('shot_outcome', 'Unknown')
+            
+            # Extract minute and second for clean timestamp
+            minute = row.get('minute', 0)
+            second = row.get('second', 0)
+            
+            # Format timestamp as MM:SS
+            timestamp_str = f"{int(minute):02d}:{int(second):02d}"
+            
+            # Create semantic label: "MM:SS - Player Name (Outcome)"
+            label = f"{timestamp_str} - {player_name} ({shot_outcome})"
+        else:
+            # Fallback to original format if shot event not found
+            label = f"Shot {i+1}: {row['timestamp']} ({shot_id[:8]}...)"
+        
+        shot_labels.append(label)
     
     selected_shot_label = st.sidebar.selectbox(
         "Select a shot event:",
@@ -478,6 +505,9 @@ def main():
     st.sidebar.markdown("**Team Breakdown:**")
     for team, count in team_counts.items():
         st.sidebar.write(f"  • {team}: {count} players")
+    
+    # Add informational note about tracking data limitations
+    st.sidebar.info("📹 Note: Spatial tracking only includes players visible within the broadcast camera frame at the exact moment of the shot.")
     
     # Initialize analyzer (no caching - compute fresh each time)
     analyzer = SoccerVoronoiAnalyzer(
@@ -556,6 +586,12 @@ def main():
         )
         st.markdown('</div>', unsafe_allow_html=True)
         
+        # AI Tactical Explanation - Moved up for prominence
+        st.markdown("### 🤖 AI Tactical Analysis")
+        st.markdown('<div class="explanation-box">', unsafe_allow_html=True)
+        st.write(explanation)
+        st.markdown('</div>', unsafe_allow_html=True)
+        
         # Player areas
         st.markdown("### 👥 Player Controlled Areas")
         
@@ -567,12 +603,6 @@ def main():
         st.markdown("**Top 5 Players:**")
         for i, (player, area) in enumerate(sorted_players[:5], 1):
             st.write(f"{i}. {player}: {area:.0f} sq yards")
-        
-        # AI Tactical Explanation
-        st.markdown("### 🤖 AI Tactical Analysis")
-        st.markdown('<div class="explanation-box">', unsafe_allow_html=True)
-        st.write(explanation)
-        st.markdown('</div>', unsafe_allow_html=True)
         
         # Additional insights
         with st.expander("📈 Detailed Metrics"):
@@ -592,7 +622,11 @@ def main():
     st.markdown("""
     <div style='text-align: center; color: #666; font-size: 0.9rem;'>
         Built with using Streamlit, Plotly, and IBM Granite AI<br>
+<<<<<<< Updated upstream
         Data source: StatsBomb Open Data<br>
+=======
+        Data source: StatsBomb Open Data
+>>>>>>> Stashed changes
         By Nihat Garibli
     </div>
     """, unsafe_allow_html=True)
