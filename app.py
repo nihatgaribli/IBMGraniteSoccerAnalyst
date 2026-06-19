@@ -606,12 +606,13 @@ def main():
         
         # Additional insights
         with st.expander("📈 Detailed Metrics"):
+            attacking_third_coverage = analysis_result.get('attacking_third_coverage', {})
             st.json({
                 "Shot ID": selected_shot_id,
                 "Attacking Third Coverage": {
-                    "Attacking Team Area": f"{analysis_result['attacking_third_coverage']['Attacking Team Area']:.2f} sq yards",
-                    "Defending Team Area": f"{analysis_result['attacking_third_coverage']['Defending Team Area']:.2f} sq yards",
-                    "Total Controlled": f"{analysis_result['attacking_third_coverage']['Total Controlled']:.2f} sq yards"
+                    "Attacking Team Area": f"{attacking_third_coverage.get('Attacking Team Area', 0.0):.2f} sq yards",
+                    "Defending Team Area": f"{attacking_third_coverage.get('Defending Team Area', 0.0):.2f} sq yards",
+                    "Total Controlled": f"{attacking_third_coverage.get('Total Controlled', 0.0):.2f} sq yards"
                 },
                 "Player Count": len(shot_df),
                 "Timestamp": shot_df['timestamp'].iloc[0]

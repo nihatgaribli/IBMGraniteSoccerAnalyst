@@ -266,6 +266,13 @@ Explain in exactly 4 sentences:
         
         # Find players with extreme areas
         sorted_players = sorted(player_areas.items(), key=lambda x: x[1], reverse=True)
+        if not sorted_players:
+            return (
+                f"Despite controlling {defending_pct:.1f}% of the attacking third, the defending team's spatial dominance did not convert into a clear player-level advantage because the freeze-frame data did not contain enough tracked players to isolate individual positioning patterns. "
+                f"That makes the shot more likely to reflect a team structure problem than a single outlier. "
+                f"The tactical lesson is that territory alone is not enough if the defense cannot turn it into pressure on the ball carrier and nearby passing lanes."
+            )
+
         largest_player = sorted_players[0][0] if sorted_players else "Unknown"
         smallest_player = sorted_players[-1][0] if sorted_players else "Unknown"
         
