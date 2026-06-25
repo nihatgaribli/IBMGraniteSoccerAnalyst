@@ -301,7 +301,7 @@ div[data-testid="stToggle"] > label > p {
 
         view_mode = st.radio(
             "Visualization Mode:",
-            ["3D Interactive", "2D Classic"],
+            ["2D Classic", "3D Interactive"],
             index=0
         )
 
